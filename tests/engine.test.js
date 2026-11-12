@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {sample,setKey,validateProject,initialProject} from '../src/engine.js';
+test('static values and boundaries hold across the timeline',()=>{const l={x:12,keys:{}};assert.equal(sample(l,'x',3),12);setKey(l,'x',1,20,'linear');setKey(l,'x',3,80,'linear');assert.equal(sample(l,'x',0),20);assert.equal(sample(l,'x',2),50);assert.equal(sample(l,'x',4),80);});
+test('smooth and hold interpolation behave differently',()=>{const l={x:0,keys:{x:[{time:0,value:0,easing:'ease'},{time:4,value:100,easing:'ease'}]}};assert.equal(sample(l,'x',1),15.625);l.keys.x[1].easing='hold';assert.equal(sample(l,'x',3),0);assert.equal(sample(l,'x',4),100);l.keys.x.push({time:8,value:200,easing:'hold'});assert.equal(sample(l,'x',4),100);assert.equal(sample(l,'x',6),100);});
+test('editing a keyframe replaces its value without duplicating it',()=>{const l={keys:{}};setKey(l,'x',2,10);setKey(l,'x',0,5);setKey(l,'x',2,30);assert.deepEqual(l.keys.x.map(k=>k.value),[5,30]);});
+test('project files round trip and reject corrupt animation data',()=>{const p=initialProject();assert.deepEqual(validateProject(JSON.parse(JSON.stringify(p))),p);p.layers[0].keys.x=[{time:99,value:0,easing:'ease'}];assert.throws(()=>validateProject(p));});
+test('reject invalid dimensions, duplicate IDs and external image URLs',()=>{const p=initialProject();p.width=Infinity;assert.throws(()=>validateProject(p));p.width=1280;p.layers[1].id=p.layers[0].id;assert.throws(()=>validateProject(p));p.layers[1].id='new';p.layers[1].type='image';p.layers[1].src='https://example.com/a.png';assert.throws(()=>validateProject(p));});
